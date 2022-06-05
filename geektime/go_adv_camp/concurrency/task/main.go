@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,28 +22,13 @@ func (m *MyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *MyHandler)Run(server *http.Server) error {
+	fmt.Printf("listening %s\n",server.Addr)
 	return server.ListenAndServe()
 }
 
 func (m *MyHandler) Close()  error{
 	return m.Svc.Close()
 }
-func handleSignal()  {
-	sigs := make(chan os.Signal, 1)
-	done := make(chan bool, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		sig := <-sigs
-		fmt.Println(sig)
-		done <- true
-	}()
-	signal.Stop(sigs)
-	fmt.Println("awaiting signal")
-	<-done
-	fmt.Println("exiting")
-}
-
-
 
 func main() {
 	handler := &MyHandler{}
@@ -56,12 +42,7 @@ func main() {
 	group, errCtx := errgroup.WithContext(ctx)
 
 	group.Go(func() error {
-		return handler.Run(s)
-	})
-
-	group.Go(func() error {
-		<-errCtx.Done()
-		return svc.Close()
+		return handler.Run(svc)
 	})
 
 	chanel := make(chan os.Signal, 1)
@@ -71,9 +52,14 @@ func main() {
 		for {
 			select {
 			case <-errCtx.Done():
+				e := svc.Close()
+				if e!=nil{
+					println(e.Error())
+				}
 				return errCtx.Err()
 			case <-chanel:
 				cancel()
+
 			}
 		}
 		return nil
