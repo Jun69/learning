@@ -36,7 +36,7 @@ func dump() (string,error) {
 }
 
 func openFile()  {
-	_,err:=os.Open("/tmp/data/info")
+	_,err:=os.Open("/int_vs_float/data/info")
 	if err != nil {
 		fmt.Printf("%s \n %s",err.Error(),debug.Stack())
 	}
